@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>뽀글뽀글 토마토 막걸리 공방</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/neodgm/neodgm-webfont@1.530/neodgm/style.css">
+    
+    <style>
+        :root {
+            --point-color: #FF5A5F;
+            --bg-color: #FFF0F0;
+        }
+
+        body {
+            font-family: 'NeoDunggeunmo', sans-serif;
+            background-color: #2b2b2b;
+            color: #333;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            height: 100dvh;
+            touch-action: none;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
+            height: 100dvh;
+            background-color: var(--bg-color);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 4px solid #333;
+        }
+
+        @media (min-width: 600px) {
+            #game-container {
+                aspect-ratio: 3 / 4;
+                height: 80vh;
+                max-height: 800px;
+                border-radius: 12px;
+            }
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .retro-btn {
+            background-color: var(--point-color);
+            color: white;
+            border: 3px solid #333;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 4px 4px 0px #333;
+            transition: transform 0.1s, box-shadow 0.1s;
+            text-shadow: 1px 1px 0 #000;
+            font-family: inherit;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .retro-btn:active, .retro-btn.active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px #333;
+        }
+
+        .retro-btn.blue { background-color: #4A90E2; }
+        .retro-btn.yellow { background-color: #F5A623; color: #333; text-shadow: none; }
+
+        .title-text {
+            font-size: 2.5rem;
+            color: var(--point-color);
+            text-shadow: 2px 2px 0 #333, -2px -2px 0 #333, 2px -2px 0 #333, -2px 2px 0 #333, 4px 4px 0px #000;
+            line-height: 1.2;
+            text-align: center;
+        }
+
+        .header-bar {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-bottom: 3px solid #333;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.2rem;
+            z-index: 10;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .shaking { animation: shake 0.5s; }
+        .floating { animation: float 2s ease-in-out infinite; }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        .pop-anim { animation: pop 0.2s ease-out; }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            flex-direction: column;
+            color: white;
+            text-align: center;
+        }
+        .hidden { display: none !important; }
+
+        /* Stage 1 */
+        #s1-canvas { flex-grow: 1; position: relative; overflow: hidden; background: linear-gradient(to bottom, #87CEEB, #FFF0F0); }
+        #s1-pot {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 4rem;
+            width: 80px;
+            height: 80px;
+            text-align: center;
+            line-height: 80px;
+            user-select: none;
+            z-index: 5;
+        }
+        .falling-item { position: absolute; font-size: 2.5rem; user-select: none; z-index: 4; }
+
+        /* Stage 2 */
+        #s2-canvas { flex-grow: 1; background: #FFDAB9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; position: relative;}
+        #thermometer-bg { width: 80%; height: 40px; border: 3px solid #333; border-radius: 20px; background: #eee; position: relative; overflow: hidden; }
+        #safe-zone { position: absolute; left: 35%; width: 30%; height: 100%; background: rgba(0, 255, 0, 0.4); border-left: 2px dashed #000; border-right: 2px dashed #000; }
+        #needle { position: absolute; left: 50%; top: -5px; bottom: -5px; width: 6px; background: red; border: 1px solid #000; transform: translateX(-50%); transition: left 0.1s linear; }
+        .pot-container-s2 { position: relative; width: 200px; height: 180px; display: flex; justify-content: center; align-items: flex-end; margin-bottom: 20px;}
+        #s2-pot { font-size: 8rem; z-index: 1; transition: transform 0.1s; user-select: none;}
+        #yeast-char { font-size: 4.5rem; position: absolute; bottom: 50px; z-index: 2; transition: transform 0.2s; user-select: none; }
+        .controls-s2 { display: flex; gap: 20px; width: 100%; justify-content: center; padding: 10px 20px 40px 20px; box-sizing: border-box; }
+
+        /* Stage 3 */
+        #s3-canvas { flex-grow: 1; background: #FFF5EE; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        #giant-tomato { font-size: 10rem; cursor: pointer; user-select: none; transition: transform 0.05s; -webkit-tap-highlight-color: transparent;}
+        #giant-tomato:active { transform: scale(0.9); }
+        #juice-pool { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: #FF4500; transition: height 0.2s, background-color 0.5s; opacity: 0.8; z-index: 1;}
+
+        /* Stage 4 */
+        #s4-canvas { flex-grow: 1; background: #F0FFF0; position: relative; display: flex; flex-direction: column; align-items: center;}
+        #basil-bag { font-size: 5rem; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); cursor: grab; user-select: none; z-index: 10; touch-action: none; text-shadow: 2px 2px 0px #000; filter: drop-shadow(0px 5px 5px rgba(0,0,0,0.3));}
+        #basil-bag:active { cursor: grabbing; }
+        .pot-wrapper-s4 { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: center; z-index: 5; pointer-events: none; }
+        #s4-pot { font-size: 8rem; pointer-events: auto; position: relative; display: inline-block; }
+        #s4-pot::after { content: "✨"; position: absolute; right: -50px; top: 20px; font-size: 4rem; opacity: 0; transition: opacity 0.1s; pointer-events: none; }
+        #s4-pot.sparkle::after { opacity: 1; }
+        #dip-timer-display { font-size: 4rem; font-weight: bold; margin-top: 20px; color: #333; text-shadow: 2px 2px 0px #fff; text-align: center; width: 100%; line-height: 1.2; }
+
+        /* Stage 5 */
+        #s5-canvas { flex-grow: 1; background: #FFF; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; -webkit-user-select: none; }
+        #bottle { width: 90px; height: 32vh; max-height: 240px; border: 4px solid #333; border-radius: 10px 10px 20px 20px; position: relative; z-index: 2; display: flex; align-items: flex-end; overflow: hidden; background: rgba(255,255,255,0.8); }
+        #bottle-neck { width: 35px; height: 40px; border: 4px solid #333; border-bottom: none; border-radius: 10px 10px 0 0; margin-bottom: -4px; z-index: 3; background: rgba(255,255,255,0.8); position: relative;}
+        #target-line { position: absolute; width: 130px; height: 4px; background: red; bottom: 60%; z-index: 5; margin-left: -20px; border-radius: 2px;}
+        #liquid { width: 100%; height: 0%; background: #FF5A5F; z-index: 1; transition: height 0.05s linear; }
+        #pour-btn { 
+            margin-top: 15px; 
+            margin-bottom: 20px; 
+            width: 80%; 
+            user-select: none; 
+            -webkit-user-select: none; 
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+        }
+        
+        #sticker { position: absolute; font-size: 4rem; z-index: 10; top: 20px; left: 20px; cursor: grab; touch-action: none; display: none;}
+        #sticker:active { cursor: grabbing; }
+
+        .progress-container { width: 150px; height: 20px; background: #ddd; border: 2px solid #333; border-radius: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; background: #4CAF50; width: 0%; transition: width 0.2s; }
+        
+        .score-float { position: absolute; font-weight: bold; font-size: 1.5rem; text-shadow: 1px 1px 0 #fff; pointer-events: none; z-index: 50; animation: floatUp 1s forwards;}
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-30px); } }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    
+    <div id="screen-start" class="screen active" style="justify-content: center; align-items: center; padding: 20px;">
+        <div class="text-6xl mb-4 floating">🍅🍶</div>
+        <h1 class="title-text mb-8">뽀글뽀글<br>토마토 막걸리<br>공방</h1>
+        <p class="text-center mb-8 bg-white/80 p-4 rounded-lg border-2 border-gray-800">
+            직접 재료를 고르고 발효시켜<br>전설의 토마토 막걸리를 완성하세요!<br><br>과연 당신의 양조 실력은?
+        </p>
+        <button class="retro-btn" onclick="game.startStage(1)">양조 시작하기</button>
+    </div>
+
+    <div id="game-header" class="header-bar hidden" style="position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; z-index: 50;">
+        <div>SCORE: <span id="total-score" class="text-red-500 font-bold">0</span></div>
+        <div id="stage-indicator">STAGE 1/5</div>
+    </div>
+
+    <div id="screen-stage1" class="screen" style="padding-top: 44px;">
+        <div class="header-bar" style="border-top: none;">
+            <div class="flex items-center gap-2">
+                <span>항아리:</span>
+                <div class="progress-container"><div id="s1-progress" class="progress-bar"></div></div>
+            </div>
+            <div>⏳ <span id="s1-time">20</span>초</div>
+        </div>
+        <div id="s1-canvas">
+            <div id="s1-pot">🏺</div>
+        </div>
+    </div>
+
+    <div id="screen-stage2" class="screen" style="padding-top: 44px;">
+         <div class="header-bar" style="border-top: none;">
+            <div>발효 진행도: <span id="s2-progress-text">0%</span></div>
+            <div>⏳ <span id="s2-time">10</span>초</div>
+        </div>
+        <div id="s2-canvas">
+            <div class="pot-container-s2" style="margin-top: 30px;">
+                <div id="s2-pot-effect" style="position: absolute; top: -30px; font-size: 4rem; z-index: 10;"></div>
+                <div id="s2-pot" style="font-size: 7rem;">🏺</div>
+                <div id="yeast-char" class="floating">🍚</div>
+            </div>
+            <div id="s2-status" class="text-xl font-bold bg-white px-4 py-1 rounded-full border-2 border-black z-10">안정적!</div>
+            
+            <div id="thermometer-bg">
+                <div id="safe-zone"></div>
+                <div id="needle"></div>
+            </div>
+
+            <div class="controls-s2">
+                <button class="retro-btn blue flex-1" id="btn-cool">❄️ 냉각</button>
+                <button class="retro-btn flex-1" id="btn-heat" style="background:#FF4500;">🔥 가열</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-stage3" class="screen" style="padding-top: 44px;">
+        <div class="header-bar" style="border-top: none;">
+            <div>착즙 콤보: <span id="s3-combo" class="text-red-500 text-2xl font-bold">0</span></div>
+            <div>⏳ <span id="s3-time">7</span>초</div>
+        </div>
+        <div id="s3-canvas">
+            <h2 class="text-2xl font-bold z-10 mb-8 bg-white/80 p-2 rounded-lg border-2 border-black">미친듯이 연타하세요!!</h2>
+            <div id="giant-tomato" class="z-10" onpointerdown="game.clickTomato()">🍅</div>
+            <div id="juice-pool"></div>
+        </div>
+    </div>
+
+    <div id="screen-stage4" class="screen" style="padding-top: 44px;">
+        <div class="header-bar" style="border-top: none;">
+            <div>목표 시간: <span class="text-green-600 font-bold">정확히 5.00초!</span></div>
+        </div>
+        <div id="s4-canvas">
+            <div class="text-center mt-4 bg-white/80 p-2 rounded-lg border-2 border-black z-10 w-4/5">
+                바질을 드래그해 항아리에 넣고<br><b>정확히 5초</b> 뒤에 빼세요!<br>(3초부터 화면이 가려집니다)
+            </div>
+            <div id="dip-timer-display">0.00</div>
+            <div id="basil-bag">🌿</div>
+            <div class="pot-wrapper-s4">
+                <div id="s4-pot">🏺</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-stage5" class="screen" style="padding-top: 44px;">
+         <div class="header-bar" style="border-top: none;">
+            <div>장인의 손길... 병입 및 라벨링</div>
+        </div>
+        <div id="s5-canvas">
+            <div id="sticker">🏷️</div>
+            <div class="text-center mb-4 z-10 bg-white/80 p-2 rounded border-2 border-black text-sm" id="s5-instruction">
+                버튼을 눌러 **빨간 선**에<br>딱 맞게 술을 채우세요!
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
+                <div id="bottle-neck"></div>
+                <div id="target-line"></div>
+                <div id="bottle">
+                    <div id="liquid"></div>
+                </div>
+            </div>
+            <button class="retro-btn yellow" id="pour-btn">🍶 누르고 있기</button>
+        </div>
+    </div>
+
+    <div id="screen-ending" class="screen" style="justify-content: center; align-items: center; padding: 15px; background: #333; color: white; overflow-y: auto;">
+        <h1 class="text-2xl mb-1 mt-2 text-yellow-300 font-bold" style="text-shadow: 2px 2px 0px #000;">평가 결과</h1>
+        <div id="ending-rank" class="text-6xl mb-1 font-bold pop-anim" style="color: #FF5A5F; text-shadow: 4px 4px 0px #fff;">S</div>
+        <div id="ending-title" class="text-lg mb-2 font-bold text-center">천상의 토마토 막걸리</div>
+        <div class="text-4xl mb-2" id="ending-emoji">😇🍷🍅</div>
+        <p id="ending-desc" class="text-center mb-4 text-xs sm:text-sm bg-white/10 p-2 rounded-lg border border-gray-500 max-w-sm leading-relaxed"></p>
+        <div class="text-base mb-3 text-gray-300">최종 점수: <span id="final-score">0</span></div>
+        <button class="retro-btn mb-2" style="font-size: 1rem; padding: 8px 16px;" onclick="location.reload()">다시 도전하기</button>
+    </div>
+
+    <div id="stage-intro" class="overlay hidden">
+        <h2 id="intro-title" class="text-4xl text-yellow-300 font-bold mb-4" style="text-shadow: 2px 2px 0px #000;">스테이지 1</h2>
+        <p id="intro-desc" class="text-xl mb-8">재료 줍줍 아케이드!</p>
+        <div class="text-6xl mb-8" id="intro-icon">🏺</div>
+        <p class="mb-8 text-gray-200" id="intro-detail"></p>
+        <button class="retro-btn" id="intro-start-btn">준비 완료!</button>
+    </div>
+
+</div>
+
+<script>
+class Game {
+    constructor() {
+        this.totalScore = 0;
+        this.currentStage = 0;
+        this.scores = { s1: 0, s2: 0, s3: 0, s4: 0, s5: 0 };
+        this.container = document.getElementById('game-container');
+        this.header = document.getElementById('game-header');
+        
+        this.isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    }
+
+    showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(`screen-${screenId}`).classList.add('active');
+        if(screenId !== 'start' && screenId !== 'ending') {
+            this.header.classList.remove('hidden');
+            document.getElementById('stage-indicator').innerText = `STAGE ${this.currentStage}/5`;
+        } else {
+            this.header.classList.add('hidden');
+        }
+    }
+
+    updateScore(points) {
+        this.totalScore += points;
+        if(this.totalScore < 0) this.totalScore = 0;
+        document.getElementById('total-score').innerText = Math.floor(this.totalScore);
+        
+        const scoreEl = document.getElementById('total-score');
+        scoreEl.classList.remove('pop-anim');
+        void scoreEl.offsetWidth; 
+        scoreEl.classList.add('pop-anim');
+    }
+
+    showFloatText(text, x, y, color = '#FF5A5F') {
+        const el = document.createElement('div');
+        el.className = 'score-float';
+        el.innerText = text;
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        el.style.color = color;
+        this.container.appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+    }
+
+    showIntro(stage, title, desc, icon, detail, onStart) {
+        this.currentStage = stage;
+        const overlay = document.getElementById('stage-intro');
+        document.getElementById('intro-title').innerText = title;
+        document.getElementById('intro-desc').innerText = desc;
+        document.getElementById('intro-icon').innerText = icon;
+        document.getElementById('intro-detail').innerHTML = detail;
+        overlay.classList.remove('hidden');
+        
+        const btn = document.getElementById('intro-start-btn');
+        btn.onclick = () => {
+            overlay.classList.add('hidden');
+            onStart();
+        };
+    }
+
+    startStage(stageNum) {
+        if(stageNum === 1) {
+            this.showIntro(1, "STAGE 1", "밑술 빚기", "🌾💧🍚", "좌우로 움직여<br>좋은 재료(쌀, 누룩, 물)만 받으세요!<br>벌레나 썩은 물은 피하세요.", () => this.runStage1());
+        }
+    }
+
+    runStage1() {
+        this.showScreen('stage1');
+        
+        const canvas = document.getElementById('s1-canvas');
+        const pot = document.getElementById('s1-pot');
+        const progressBar = document.getElementById('s1-progress');
+        const timeEl = document.getElementById('s1-time');
+        
+        let timeLeft = 20;
+        let fillAmt = 0;
+        let potX = canvas.clientWidth / 2;
+        let items = [];
+        let animationId;
+        let lastSpawn = 0;
+        let combo = 0;
+
+        const goodItems = ['🌾', '🍚', '💧'];
+        const badItems = ['🐛', '💩', '🍂'];
+
+        const movePot = (clientX) => {
+            const rect = canvas.getBoundingClientRect();
+            potX = clientX - rect.left;
+            potX = Math.max(40, Math.min(rect.width - 40, potX)); 
+            pot.style.left = `${potX}px`;
+        };
+
+        canvas.addEventListener('pointermove', (e) => {
+            if(e.buttons > 0 || e.pointerType === 'touch') movePot(e.clientX);
+        });
+        canvas.addEventListener('pointerdown', (e) => movePot(e.clientX));
+
+        const spawnItem = (time) => {
+            if (time - lastSpawn > 300) { 
+                lastSpawn = time;
+                
+                const hasBadItem = items.some(item => !item.isGood);
+                let isGood = (!hasBadItem) ? false : (Math.random() < 0.85);
+                
+                const itemType = isGood ? goodItems[Math.floor(Math.random() * goodItems.length)] : badItems[Math.floor(Math.random() * badItems.length)];
+                
+                const el = document.createElement('div');
+                el.className = 'falling-item';
+                el.innerText = itemType;
+                const startX = 20 + Math.random() * (canvas.clientWidth - 40);
+                el.style.left = `${startX}px`;
+                el.style.top = `-40px`;
+                canvas.appendChild(el);
+                
+                items.push({ el, x: startX, y: -40, isGood, speed: 5 + Math.random() * 6 });
+            }
+        };
+
+        const loop = (time) => {
+            if(timeLeft <= 0 || fillAmt >= 100) {
+                endStage1();
+                return;
+            }
+
+            spawnItem(time);
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                let item = items[i];
+                item.y += item.speed;
+                item.el.style.top = `${item.y}px`;
+
+                let itemCenterX = item.x + 20; 
+                let distanceX = Math.abs(itemCenterX - potX);
+                let isHittingY = item.y > canvas.clientHeight - 90 && item.y < canvas.clientHeight - 30;
+
+                if (isHittingY) {
+                    let hitThreshold = item.isGood ? 45 : 35; 
+
+                    if (distanceX < hitThreshold) {
+                        if (item.isGood) {
+                            combo++;
+                            let pts = 5;
+                            let floatText = '+5';
+                            let floatColor = '#4CAF50';
+                            
+                            if (combo > 5) {
+                                pts = 10;
+                                floatText = 'FEVER +10';
+                                floatColor = '#FFD700';
+                            }
+                            
+                            this.updateScore(pts);
+                            this.scores.s1 += pts;
+                            fillAmt += 5;
+                            progressBar.style.width = `${Math.min(100, fillAmt)}%`;
+                            this.showFloatText(floatText, item.x, canvas.clientHeight - 100, floatColor);
+                            pot.classList.add('pop-anim');
+                            setTimeout(() => pot.classList.remove('pop-anim'), 200);
+                        } else {
+                            combo = 0; 
+                            timeLeft -= 2; 
+                            this.updateScore(-10);
+                            this.scores.s1 -= 10;
+                            this.showFloatText('우웩-10점', item.x, canvas.clientHeight - 100, '#FF0000');
+                            this.container.classList.add('shaking');
+                            pot.innerText = '🤮';
+                            setTimeout(() => { this.container.classList.remove('shaking'); pot.innerText = '🏺'; }, 500);
+                        }
+                        item.el.remove();
+                        items.splice(i, 1);
+                        continue;
+                    }
+                }
+
+                if (item.y > canvas.clientHeight) {
+                    item.el.remove();
+                    items.splice(i, 1);
+                }
+            }
+            animationId = requestAnimationFrame(loop);
+        };
+
+        const timerId = setInterval(() => {
+            timeLeft--;
+            if(timeLeft < 0) timeLeft = 0;
+            timeEl.innerText = timeLeft;
+        }, 1000);
+
+        const endStage1 = () => {
+            cancelAnimationFrame(animationId);
+            clearInterval(timerId);
+            items.forEach(i => i.el.remove());
+            
+            setTimeout(() => {
+                this.showIntro(2, "STAGE 2", "발효 부스트", "🔥❄️🍚", "온도계 바늘을 <b>초록색 안전지대</b>에 유지하세요!<br>버튼을 눌러 온도를 조절합니다.", () => this.runStage2());
+            }, 1000);
+        };
+
+        animationId = requestAnimationFrame(loop);
+    }
+
+    runStage2() {
+        this.showScreen('stage2');
+        const needle = document.getElementById('needle');
+        const timeEl = document.getElementById('s2-time');
+        const charEl = document.getElementById('yeast-char');
+        const statusEl = document.getElementById('s2-status');
+        const progressText = document.getElementById('s2-progress-text');
+        const pot = document.getElementById('s2-pot');
+        const potEffect = document.getElementById('s2-pot-effect');
+        
+        const btnCool = document.getElementById('btn-cool');
+        const btnHeat = document.getElementById('btn-heat');
+        
+        let timeLeft = 10;
+        this.temp = 20; 
+        let perfectFrames = 0;
+        let totalFrames = 0;
+        let currentDrift = 1.0; 
+        
+        let timerId = setInterval(() => {
+            timeLeft--;
+            timeEl.innerText = timeLeft;
+            if(timeLeft <= 0) endStage2();
+        }, 1000);
+
+        const applyTemp = (val) => {
+            this.temp += val;
+            currentDrift = val > 0 ? 0.3 : -0.3; 
+            
+            pot.style.transform = `scale(1.1) ${val < 0 ? 'rotate(-5deg)' : 'rotate(5deg)'}`;
+            setTimeout(() => {
+                if (!pot.classList.contains('shaking')) {
+                    pot.style.transform = 'scale(1) rotate(0deg)';
+                } else {
+                    pot.style.transform = ''; 
+                }
+            }, 100);
+        };
+
+        btnCool.onpointerdown = (e) => { e.preventDefault(); applyTemp(-12); };
+        btnHeat.onpointerdown = (e) => { e.preventDefault(); applyTemp(12); };
+
+        let animId;
+        const loop = () => {
+            if (Math.random() < 0.08) { 
+                currentDrift += (Math.random() - 0.5) * 0.8; 
+            }
+            
+            if (this.temp > 80) currentDrift -= 0.5;
+            if (this.temp < 20) currentDrift += 0.5;
+
+            currentDrift = Math.max(-2.0, Math.min(2.0, currentDrift)); 
+
+            let jitter = (Math.random() - 0.5) * 0.2; 
+            this.temp += currentDrift + jitter;
+            
+            this.temp = Math.max(0, Math.min(100, this.temp));
+            needle.style.left = `${this.temp}%`;
+            
+            totalFrames++;
+            let isSafe = (this.temp >= 35 && this.temp <= 65);
+            
+            if(isSafe) {
+                perfectFrames++;
+                charEl.innerText = '😎'; 
+                charEl.style.transform = `scale(1.2) rotate(${Math.sin(totalFrames/5)*10}deg)`;
+                statusEl.innerText = "PERFECT!";
+                statusEl.style.color = "#4CAF50";
+                
+                potEffect.innerText = "";
+                pot.classList.remove('shaking');
+                
+                if(totalFrames % 10 === 0) {
+                    this.updateScore(2);
+                    this.scores.s2 += 2;
+                }
+            } else {
+                if(this.temp > 65) {
+                    charEl.innerText = '🥵';
+                    statusEl.innerText = "너무 뜨거워!";
+                    potEffect.innerText = "♨️";
+                    pot.classList.add('shaking');
+                } else {
+                    charEl.innerText = '🥶';
+                    statusEl.innerText = "너무 차가워!";
+                    potEffect.innerText = "🧊";
+                    pot.classList.add('shaking');
+                }
+                charEl.style.transform = `scale(1.0) translateX(${(Math.random()-0.5)*10}px)`;
+                statusEl.style.color = "#FF0000";
+                
+                if(totalFrames % 10 === 0 && this.totalScore > 0) {
+                    this.updateScore(-2);
+                    this.scores.s2 -= 2;
+                }
+            }
+            
+            progressText.innerText = `${Math.floor((perfectFrames/totalFrames)*100)}%`; 
+
+            animId = requestAnimationFrame(loop);
+        };
+        
+        animId = requestAnimationFrame(loop);
+
+        const endStage2 = () => {
+            clearInterval(timerId);
+            cancelAnimationFrame(animId);
+            
+            btnCool.onpointerdown = null;
+            btnHeat.onpointerdown = null;
+            pot.classList.remove('shaking');
+            potEffect.innerText = "";
+            
+            setTimeout(() => {
+                 this.showIntro(3, "STAGE 3", "풍미 주입 (착즙)", "🍅✊", "7초 동안 토마토를 <b>미친듯이 연타</b>하세요!<br>고농축 과즙을 뽑아내야 합니다.", () => this.runStage3());
+            }, 1000);
+        };
+    }
+
+    runStage3() {
+        this.showScreen('stage3');
+        const timeEl = document.getElementById('s3-time');
+        const comboEl = document.getElementById('s3-combo');
+        const pool = document.getElementById('juice-pool');
+        const tomato = document.getElementById('giant-tomato');
+        
+        let timeLeft = 7;
+        let clicks = 0;
+        
+        this.clickTomato = () => {
+            if(timeLeft <= 0) return;
+            clicks++;
+            comboEl.innerText = clicks;
+            this.updateScore(1);
+            this.scores.s3 += 1;
+            
+            tomato.style.transform = `scale(0.9) rotate(${(Math.random()-0.5)*20}deg)`;
+            setTimeout(()=> tomato.style.transform = `scale(1) rotate(0deg)`, 50);
+            
+            let fillPercent = Math.min(100, clicks * 1.5);
+            pool.style.height = `${fillPercent}%`;
+            
+            if(clicks > 40) pool.style.backgroundColor = "#B22222"; 
+            else if (clicks > 20) pool.style.backgroundColor = "#FF0000";
+        };
+        
+        let timerId = setInterval(() => {
+            timeLeft--;
+            timeEl.innerText = timeLeft;
+            if(timeLeft <= 0) {
+                clearInterval(timerId);
+                
+                setTimeout(() => {
+                     this.showIntro(4, "STAGE 4", "바질 드라이호핑", "🌿⏱", "바질 망을 항아리에 넣고<br><b>정확히 5초</b> 뒤에 빼세요!<br>(3초부터 시간이 가려집니다)", () => this.runStage4());
+                }, 1500);
+            }
+        }, 1000);
+    }
+
+    runStage4() {
+        this.showScreen('stage4');
+        const bag = document.getElementById('basil-bag');
+        const pot = document.getElementById('s4-pot');
+        const display = document.getElementById('dip-timer-display');
+        
+        let isDragging = false;
+        let isDipped = false;
+        let startTime = 0;
+        let timerInterval = null;
+        let finalTime = 0;
+        
+        bag.style.top = '50%';
+        bag.style.left = '50%';
+        bag.style.transform = 'translate(-50%, -50%)';
+        display.innerHTML = "0.00";
+        display.style.color = "#333";
+        
+        const updateTimer = () => {
+            let elapsed = (Date.now() - startTime) / 1000;
+            if (elapsed > 3.0 && elapsed < 6.0) {
+                display.innerText = "???";
+            } else {
+                display.innerText = elapsed.toFixed(2);
+            }
+            if(elapsed > 8.0) {
+                stopDip();
+            }
+        };
+
+        const stopDip = () => {
+            clearInterval(timerInterval);
+            finalTime = (Date.now() - startTime) / 1000;
+            
+            let diff = Math.abs(5.0 - finalTime);
+            let scoreAdd = 0;
+            let resultText = "";
+            
+            if(diff <= 0.05) {
+                display.style.color = "#9C27B0";
+                resultText = "EXCELLENT!! (200점)";
+                scoreAdd = 200;
+            } else if(diff <= 0.1) {
+                display.style.color = "#4CAF50";
+                resultText = "PERFECT! (150점)";
+                scoreAdd = 150;
+            } else if (diff <= 0.5) {
+                display.style.color = "#FF9800";
+                resultText = "GOOD! (100점)";
+                scoreAdd = 100;
+            } else {
+                display.style.color = "#F44336";
+                resultText = "BAD... (20점)";
+                scoreAdd = 20;
+            }
+            
+            display.innerHTML = `${finalTime.toFixed(2)}초<br><div style="font-size: 2.2rem; text-align: center;">${resultText}</div>`;
+            
+            this.updateScore(scoreAdd);
+            this.scores.s4 = scoreAdd;
+            
+            bag.onpointerdown = null;
+            
+            setTimeout(() => {
+                this.showIntro(5, "STAGE 5", "병입 및 라벨링", "🍾🏷️", "버튼을 누르고 있으면 막걸리가 채워집니다.<br><b>빨간 선</b>에 정확히 맞게 채우세요!<br>너무 넘치면 실패합니다!", () => this.runStage5());
+            }, 2500);
+        };
+
+        bag.onpointerdown = (e) => {
+            isDragging = true;
+            bag.setPointerCapture(e.pointerId);
+        };
+        
+        bag.onpointermove = (e) => {
+            if(!isDragging) return;
+            const rect = this.container.getBoundingClientRect();
+            let x = e.clientX - rect.left - bag.offsetWidth/2;
+            let y = e.clientY - rect.top - bag.offsetHeight/2;
+            
+            bag.style.left = `${x}px`;
+            bag.style.top = `${y}px`;
+            bag.style.transform = 'none';
+            
+            const potRect = pot.getBoundingClientRect();
+            const bagRect = bag.getBoundingClientRect();
+            
+            let overlap = !(bagRect.right < potRect.left || 
+                            bagRect.left > potRect.right || 
+                            bagRect.bottom < potRect.top || 
+                            bagRect.top > potRect.bottom);
+                            
+            if(overlap && !isDipped) {
+                isDipped = true;
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 10);
+                pot.classList.add('sparkle');
+                pot.classList.add('shaking');
+            } else if (!overlap && isDipped) {
+                isDipped = false;
+                pot.classList.remove('sparkle');
+                pot.classList.remove('shaking');
+                stopDip();
+                isDragging = false;
+            }
+        };
+        
+        bag.onpointerup = (e) => {
+            isDragging = false;
+            bag.releasePointerCapture(e.pointerId);
+            if(isDipped) {
+                bag.style.top = '50%'; 
+                bag.style.left = '50%';
+                bag.style.transform = 'translate(-50%, -50%)';
+                isDipped = false;
+                pot.classList.remove('sparkle');
+                pot.classList.remove('shaking');
+                stopDip();
+            }
+        };
+    }
+
+    runStage5() {
+        this.showScreen('stage5'); // screen5 -> stage5 오타 수정
+        const btn = document.getElementById('pour-btn');
+        const liquid = document.getElementById('liquid');
+        const sticker = document.getElementById('sticker');
+        const instruction = document.getElementById('s5-instruction');
+        
+        let fillLevel = 0;
+        let isPouring = false;
+        let animId;
+        
+        liquid.style.transition = 'none';
+        liquid.style.backgroundColor = "#FF5A5F";
+
+        const pour = () => {
+            if(isPouring) {
+                fillLevel += 0.8;
+                if(fillLevel > 200) fillLevel = 200; 
+                liquid.style.height = `${fillLevel}%`;
+                animId = requestAnimationFrame(pour);
+            }
+        };
+
+        const startPour = (e) => {
+            e.preventDefault();
+            if(fillLevel >= 200) return;
+            isPouring = true;
+            pour();
+            btn.classList.add('active');
+        };
+
+        const stopPour = (e) => {
+            e.preventDefault();
+            if(!isPouring) return;
+            isPouring = false;
+            cancelAnimationFrame(animId);
+            btn.classList.remove('active');
+            btn.style.display = 'none';
+            
+            let diff = Math.abs(60 - fillLevel);
+            let pts = 0;
+            
+            if (diff <= 1.0) {
+                pts = 150;
+            } else {
+                pts = Math.max(0, Math.floor(150 - (diff * 10.0)));
+            }
+            
+            this.updateScore(pts);
+            this.scores.s5 = pts;
+            
+            instruction.innerHTML = "라벨을 드래그해서<br>병 <b>정중앙</b>에 붙이세요!";
+            sticker.style.display = 'block';
+            setupSticker();
+        };
+
+        btn.addEventListener('pointerdown', startPour);
+        window.addEventListener('pointerup', stopPour);
+
+        const setupSticker = () => {
+            let isDragging = false;
+            sticker.onpointerdown = (e) => {
+                isDragging = true;
+                sticker.setPointerCapture(e.pointerId);
+            };
+            sticker.onpointermove = (e) => {
+                if(!isDragging) return;
+                const rect = this.container.getBoundingClientRect();
+                let x = e.clientX - rect.left - sticker.offsetWidth/2;
+                let y = e.clientY - rect.top - sticker.offsetHeight/2;
+                sticker.style.left = `${x}px`;
+                sticker.style.top = `${y}px`;
+            };
+            sticker.onpointerup = (e) => {
+                isDragging = false;
+                sticker.releasePointerCapture(e.pointerId);
+                
+                setTimeout(() => this.showEnding(), 500);
+            };
+        }
+    }
+
+    showEnding() {
+        this.showScreen('ending');
+        document.getElementById('final-score').innerText = this.totalScore;
+        
+        let rank, title, emoji, desc, color;
+        
+        if (this.totalScore >= 750) {
+            rank = "SSS"; color = "#FFD700";
+            title = "천상의 토마토 막걸리"; emoji = "😇🍷🍅";
+            desc = "모든 공정이 완벽합니다!<br>영롱한 루비빛 막걸리에서 황홀한 바질향이 피어오릅니다.<br>미슐랭 3스타 셰프도 울고 갈 전설의 맛!";
+        } 
+        else if (this.totalScore >= 700) {
+            rank = "SS"; color = "#FF9800";
+            title = "기적의 토마토 막걸리"; emoji = "🤩✨🍅";
+            desc = "놀라운 솜씨입니다!<br>거의 완벽에 가까운 밸런스, 한 모금 마시면 멈출 수 없는<br>환상적인 막걸리가 탄생했습니다.";
+        }
+        else if (this.totalScore >= 620) {
+            rank = "S"; color = "#00BCD4";
+            title = "명인의 토마토 막걸리"; emoji = "👨‍🍳🍶✨";
+            desc = "정말 훌륭한 양조 실력입니다!<br>어디 내놔도 손색없는 고급스럽고 조화로운 맛입니다.";
+        }
+        else if (this.totalScore >= 540) {
+            rank = "A"; color = "#4CAF50";
+            title = "새콤달콤 트렌디 막걸리"; emoji = "🥂🥳🍅";
+            desc = "성공적입니다!<br>홈파티에 내놓으면 사람들이 사진 찍기 바쁠<br>세련되고 맛있는 토마토 막걸리입니다.";
+        }
+        else if (this.totalScore >= 470) {
+            rank = "B"; color = "#8BC34A";
+            title = "평범한 동네 막걸리"; emoji = "😋🍶";
+            desc = "무난하게 마실 만한 막걸리입니다.<br>어딘가 살짝 아쉽지만, 그래도 정성이 들어갔잖아요?";
+        }
+        else if (this.totalScore >= 400) {
+            rank = "C"; color = "#9E9E9E";
+            title = "2% 부족한 막걸리"; emoji = "🤔🍅";
+            desc = "조금 아쉬운 결과물입니다.<br>비율이나 발효 시간에 약간의 실수가 있었나 봅니다.<br>다음엔 더 잘할 수 있을 거예요!";
+        }
+        else {
+            rank = "F"; color = "#F44336";
+            title = "지옥에서 온 식초"; emoji = "😈🤢🏺";
+            desc = "재료 선별 실패! 온도 조절 실패!<br>효모들이 악마로 변해 시큼한 식초를 만들었습니다.<br>청소용으로 쓰면 딱이겠네요.";
+        }
+
+        const rankEl = document.getElementById('ending-rank');
+        rankEl.innerText = rank;
+        rankEl.style.color = color;
+        document.getElementById('ending-title').innerText = title;
+        document.getElementById('ending-emoji').innerText = emoji;
+        document.getElementById('ending-desc').innerHTML = desc;
+    }
+}
+
+window.onload = () => {
+    window.game = new Game();
+};
+</script>
+
+</body>
+</html>
